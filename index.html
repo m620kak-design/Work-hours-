@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>ساعات العمل</title>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#0f766e">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<style>
+:root{box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);
+--bg:#f5f6f8;--card:#fff;--text:#1b1f27;--mute:#6b7280;--pri:#0f766e;--ot:#d97706;--bd:#e5e7eb;--danger:#dc2626;--hol:#7c3aed;--ann:#2563eb}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#12151a;--card:#1c2027;--text:#eceff4;--mute:#9aa3b2;--pri:#2dd4bf;--ot:#fbbf24;--bd:#2c323c;--danger:#f87171;--hol:#c4b5fd;--ann:#93c5fd}}
+:root[data-theme="dark"]{--bg:#12151a;--card:#1c2027;--text:#eceff4;--mute:#9aa3b2;--pri:#2dd4bf;--ot:#fbbf24;--bd:#2c323c;--danger:#f87171;--hol:#c4b5fd;--ann:#93c5fd}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,"Segoe UI",Tahoma,sans-serif;padding:16px;max-width:520px;margin-inline:auto}
+h1{font-size:20px;margin:4px 0 14px}
+h2{font-size:15px;margin:0 0 10px}
+.card{background:var(--card);border:1px solid var(--bd);border-radius:14px;padding:14px;margin-bottom:12px}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.full{grid-column:1/-1}
+.stat{text-align:center}
+.stat small{color:var(--mute);display:block;font-size:12px}
+.stat b{font-size:22px;color:var(--pri)}
+.stat b.ot{color:var(--ot)}.stat b.hol{color:var(--hol)}.stat b.ann{color:var(--ann)}
+label{display:block;font-size:12px;color:var(--mute);margin-bottom:4px}
+input,select,textarea{width:100%;padding:10px;border:1px solid var(--bd);border-radius:10px;background:var(--bg);color:var(--text);font-size:16px;font-family:inherit}
+textarea{resize:vertical;min-height:44px}
+button{width:100%;margin-top:12px;padding:12px;border:0;border-radius:10px;background:var(--pri);color:#fff;font-size:16px;font-weight:600}
+button.sec{background:var(--ann)}
+.row{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:10px 0;border-bottom:1px solid var(--bd);font-size:14px}
+.row:last-child{border:0}
+.ot{color:var(--ot)}
+.mute{color:var(--mute);font-size:12px}
+.tag{display:inline-block;font-size:11px;padding:1px 8px;border-radius:99px;border:1px solid currentColor;margin-inline-start:6px}
+.tag.hol{color:var(--hol)}.tag.ann{color:var(--ann)}
+.x{background:none;border:0;color:var(--danger);width:auto;margin:0;padding:4px 8px;font-size:18px}
+.hide{display:none}
+#msg{font-size:13px;margin-top:8px;color:var(--mute)}
+</style>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+</head>
+<body>
+<h1>⏱️ رصد ساعات العمل</h1>
+
+<div class="card grid">
+  <div class="stat"><small>إجمالي اليوم</small><b id="td">0:00</b></div>
+  <div class="stat"><small>إضافي اليوم</small><b class="ot" id="to">0:00</b></div>
+  <div class="stat"><small>إجمالي الشهر</small><b id="md">0:00</b></div>
+  <div class="stat"><small>إضافي الشهر</small><b class="ot" id="mo">0:00</b></div>
+  <div class="stat"><small>إجازات رسمية (الشهر)</small><b class="hol" id="mh">0</b></div>
+  <div class="stat"><small>رصيد الإجازة المتبقي (يوم)</small><b class="ann" id="bal">0</b></div>
+</div>
+
+<div class="card">
+  <h2>إضافة يوم</h2>
+  <div class="grid">
+    <div class="full"><label>نوع اليوم</label>
+      <select id="type"><option value="work">يوم عمل</option><option value="holiday">إجازة رسمية</option><option value="annual">إجازة من الرصيد السنوي</option></select></div>
+    <div><label>التاريخ</label><input type="date" id="date"></div>
+    <div id="toWrap" class="hide"><label>حتى تاريخ (اختياري)</label><input type="date" id="dateTo"></div>
+    <div class="wk"><label>ساعات الدوام الرسمي</label><input type="number" id="std" step="0.5" min="0" value="8"></div>
+    <div class="wk"><label>وقت الحضور</label><input type="time" id="in" value="08:00"></div>
+    <div class="wk"><label>وقت الانصراف</label><input type="time" id="out" value="17:00"></div>
+    <div class="wk"><label>الاستراحة (دقيقة)</label><input type="number" id="brk" min="0" value="60"></div>
+    <div class="full"><label>ملاحظات</label><textarea id="note" rows="2" placeholder="اختياري"></textarea></div>
+  </div>
+  <button id="add">إضافة</button>
+  <div class="mute" style="margin-top:8px">الرصيد السنوي (أيام):</div>
+  <input type="number" id="annual" min="0" step="0.5" value="21">
+</div>
+
+<div class="card">
+  <h2>تصدير إلى Excel</h2>
+  <div class="grid">
+    <div class="full"><label>الفترة</label>
+      <select id="range">
+        <option value="last">الشهر الماضي</option>
+        <option value="cur">الشهر الحالي</option>
+        <option value="7">آخر 7 أيام</option>
+        <option value="30">آخر 30 يوم</option>
+        <option value="custom">فترة مخصصة</option>
+      </select></div>
+    <div id="cFrom" class="hide"><label>من</label><input type="date" id="from"></div>
+    <div id="cTo" class="hide"><label>إلى</label><input type="date" id="to2"></div>
+  </div>
+  <button class="sec" id="exp">تنزيل ملف Excel</button>
+  <div id="msg"></div>
+</div>
+
+<div class="card"><h2>السجلات</h2><div id="list"></div></div>
+
+<script>
+const $=id=>document.getElementById(id);
+const TYPES={work:"عمل",holiday:"إجازة رسمية",annual:"إجازة سنوية"};
+let data=[];
+const pad=n=>String(n).padStart(2,"0");
+const ymd=d=>d.getFullYear()+"-"+pad(d.getMonth()+1)+"-"+pad(d.getDate());
+const parse=s=>{const[a,b,c]=s.split("-").map(Number);return new Date(a,b-1,c)};
+const fmt=m=>{m=Math.max(0,Math.round(m));return Math.floor(m/60)+":"+pad(m%60)};
+const toMin=t=>{const[h,m]=t.split(":").map(Number);return h*60+m};
+const dayName=s=>parse(s).toLocaleDateString("ar",{weekday:"long"});
+function load(){try{data=JSON.parse(localStorage.getItem("wh_data2")||"[]");
+  const s=localStorage.getItem("wh_std");if(s)$("std").value=s;
+  const a=localStorage.getItem("wh_annual");if(a)$("annual").value=a}catch(e){data=[]}}
+function save(){try{localStorage.setItem("wh_data2",JSON.stringify(data));localStorage.setItem("wh_std",$("std").value);localStorage.setItem("wh_annual",$("annual").value)}catch(e){}}
+function dayTotals(){const d={};data.forEach(e=>{d[e.date]=(d[e.date]||0)+(e.mins||0)});return d}
+function render(){
+  const std=(parseFloat($("std").value)||0)*60, days=dayTotals();
+  const today=ymd(new Date()), mon=today.slice(0,7), yr=today.slice(0,4);
+  let td=0,to=0,md=0,mo=0,mh=0,used=0;
+  for(const d in days){const ot=Math.max(0,days[d]-std);
+    if(d===today){td=days[d];to=ot}
+    if(d.startsWith(mon)){md+=days[d];mo+=ot}}
+  data.forEach(e=>{if(e.type==="holiday"&&e.date.startsWith(mon))mh++;if(e.type==="annual"&&e.date.startsWith(yr))used++});
+  $("td").textContent=fmt(td);$("to").textContent=fmt(to);$("md").textContent=fmt(md);$("mo").textContent=fmt(mo);
+  $("mh").textContent=mh;$("bal").textContent=(parseFloat($("annual").value)||0)-used;
+  const sorted=[...data].sort((a,b)=>b.date.localeCompare(a.date)||b.id-a.id);
+  $("list").innerHTML=sorted.length?"":'<div class="mute">لا توجد سجلات بعد</div>';
+  sorted.forEach(e=>{
+    const r=document.createElement("div");r.className="row";
+    const left=document.createElement("div");
+    const t1=document.createElement("div");t1.textContent=e.date+" · "+dayName(e.date);
+    if(e.type!=="work"){const g=document.createElement("span");g.className="tag "+(e.type==="holiday"?"hol":"ann");g.textContent=TYPES[e.type];t1.appendChild(g)}
+    left.appendChild(t1);
+    const t2=document.createElement("div");t2.className="mute";
+    t2.textContent=e.type==="work"?`${e.in} ← ${e.out} | استراحة ${e.brk}د`:"";
+    if(e.type==="work")left.appendChild(t2);
+    if(e.note){const n=document.createElement("div");n.className="mute";n.textContent="📝 "+e.note;left.appendChild(n)}
+    const right=document.createElement("div");right.style.textAlign="end";
+    if(e.type==="work"){const ot=Math.max(0,days[e.date]-std);
+      right.innerHTML=`<div>${fmt(e.mins)} ساعة</div>`+(ot?`<div class="ot mute">إضافي اليوم ${fmt(ot)}</div>`:"")}
+    const x=document.createElement("button");x.className="x";x.textContent="✕";
+    x.onclick=()=>{data=data.filter(v=>v.id!==e.id);save();render()};
+    r.append(left,right,x);$("list").appendChild(r);
+  });
+}
+function syncType(){const w=$("type").value==="work";
+  document.querySelectorAll(".wk").forEach(el=>el.classList.toggle("hide",!w));
+  $("toWrap").classList.toggle("hide",w)}
+$("type").onchange=syncType;
+$("add").onclick=()=>{
+  const type=$("type").value,date=$("date").value,note=$("note").value.trim();
+  if(!date)return;
+  if(type==="work"){
+    if(!$("in").value||!$("out").value)return;
+    let a=toMin($("in").value),b=toMin($("out").value);if(b<=a)b+=1440;
+    const brk=parseInt($("brk").value)||0,mins=b-a-brk;
+    if(mins<=0){alert("المدة غير صحيحة");return}
+    data.push({id:Date.now(),date,type,in:$("in").value,out:$("out").value,brk,mins,note});
+  }else{
+    let d=parse(date),end=$("dateTo").value?parse($("dateTo").value):d,i=0;
+    if(end<d)end=d;
+    for(;d<=end&&i<60;d=new Date(d.getFullYear(),d.getMonth(),d.getDate()+1),i++)
+      data.push({id:Date.now()+i,date:ymd(d),type,mins:0,note});
+  }
+  $("note").value="";$("dateTo").value="";save();render();
+};
+$("std").onchange=$("annual").onchange=()=>{save();render()};
+$("range").onchange=()=>{const c=$("range").value==="custom";$("cFrom").classList.toggle("hide",!c);$("cTo").classList.toggle("hide",!c)};
+function getRange(){
+  const v=$("range").value,n=new Date();let a,b;
+  if(v==="last"){a=new Date(n.getFullYear(),n.getMonth()-1,1);b=new Date(n.getFullYear(),n.getMonth(),0)}
+  else if(v==="cur"){a=new Date(n.getFullYear(),n.getMonth(),1);b=new Date(n.getFullYear(),n.getMonth()+1,0)}
+  else if(v==="custom"){if(!$("from").value||!$("to2").value)return null;a=parse($("from").value);b=parse($("to2").value)}
+  else{b=new Date(n.getFullYear(),n.getMonth(),n.getDate());a=new Date(b.getFullYear(),b.getMonth(),b.getDate()-(+v-1))}
+  return[ymd(a),ymd(b)];
+}
+$("exp").onclick=async()=>{
+  const m=$("msg");m.textContent="";
+  const rg=getRange();if(!rg){m.textContent="حدد تاريخ البداية والنهاية";return}
+  const rows=data.filter(e=>e.date>=rg[0]&&e.date<=rg[1]).sort((a,b)=>a.date.localeCompare(b.date)||a.id-b.id);
+  if(!rows.length){m.textContent="لا توجد سجلات في هذه الفترة";return}
+  const std=(parseFloat($("std").value)||0)*60,days=dayTotals(),lastOf={};
+  rows.forEach(e=>{lastOf[e.date]=e.id});
+  let tw=0,to=0,hol=0,ann=0;
+  const aoa=[["التاريخ","اليوم","النوع","الحضور","الانصراف","الاستراحة (د)","ساعات العمل","الساعات الإضافية","ملاحظات"]];
+  rows.forEach(e=>{
+    const ot=lastOf[e.date]===e.id?Math.max(0,days[e.date]-std):0;
+    tw+=e.mins||0;to+=ot;if(e.type==="holiday")hol++;if(e.type==="annual")ann++;
+    aoa.push([e.date,dayName(e.date),TYPES[e.type],e.in||"",e.out||"",e.type==="work"?e.brk:"",e.type==="work"?fmt(e.mins):"",ot?fmt(ot):"",e.note||""]);
+  });
+  aoa.push([]);
+  aoa.push(["الإجمالي","","","","","",fmt(tw),fmt(to),""]);
+  aoa.push(["إجازات رسمية",hol]);aoa.push(["إجازات من الرصيد السنوي",ann]);
+  try{
+    const ws=XLSX.utils.aoa_to_sheet(aoa);
+    ws["!cols"]=[{wch:12},{wch:10},{wch:14},{wch:9},{wch:10},{wch:13},{wch:12},{wch:16},{wch:30}];
+    const wb=XLSX.utils.book_new();wb.Workbook={Views:[{RTL:true}]};
+    XLSX.utils.book_append_sheet(wb,ws,"ساعات العمل");
+    const buf=XLSX.write(wb,{type:"array",bookType:"xlsx"});
+    const blob=new Blob([buf],{type:"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"});
+    const a=document.createElement("a");a.href=URL.createObjectURL(blob);
+    a.download=`work-hours_${rg[0]}_${rg[1]}.xlsx`;document.body.appendChild(a);a.click();a.remove();
+    setTimeout(()=>URL.revokeObjectURL(a.href),4000);
+    m.textContent="تم حفظ الملف ✓";
+  }catch(err){m.textContent="تعذر إنشاء الملف"}
+};
+$("date").value=ymd(new Date());
+load();syncType();render();
+if("serviceWorker" in navigator)navigator.serviceWorker.register("sw.js").catch(()=>{});
+</script>
+</body>
+</html>
